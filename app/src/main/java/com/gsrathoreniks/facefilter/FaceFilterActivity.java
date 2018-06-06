@@ -7,12 +7,15 @@ import android.app.Dialog;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.pm.PackageManager;
+import android.graphics.Bitmap;
 import android.os.Bundle;
+import android.os.Environment;
 import android.support.design.widget.Snackbar;
 import android.support.v4.app.ActivityCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.View;
+import android.widget.Button;
 
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.GoogleApiAvailability;
@@ -24,6 +27,8 @@ import com.google.android.gms.vision.face.FaceDetector;
 import com.gsrathoreniks.facefilter.camera.CameraSourcePreview;
 import com.gsrathoreniks.facefilter.camera.GraphicOverlay;
 
+import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 
 public class FaceFilterActivity extends AppCompatActivity {
@@ -38,6 +43,7 @@ public class FaceFilterActivity extends AppCompatActivity {
     // permission request codes need to be < 256
     private static final int RC_HANDLE_CAMERA_PERM = 2;
 
+    Button pictures;
     //==============================================================================================
     // Activity Methods
     //==============================================================================================
@@ -52,6 +58,7 @@ public class FaceFilterActivity extends AppCompatActivity {
 
         mPreview = (CameraSourcePreview) findViewById(R.id.preview);
         mGraphicOverlay = (GraphicOverlay) findViewById(R.id.faceOverlay);
+        pictures = findViewById(R.id.pictures);
 
         // Check for the camera permission before accessing the camera.  If the
         // permission is not granted yet, request permission.
@@ -61,6 +68,15 @@ public class FaceFilterActivity extends AppCompatActivity {
         } else {
             requestCameraPermission();
         }
+
+        pictures.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) {
+
+                View rootView = getWindow().getDecorView().findViewById(android.R.id.content);
+                store(getScreenShot(rootView),"test.png");
+            }
+        });
+
     }
 
     /**
@@ -304,5 +320,31 @@ public class FaceFilterActivity extends AppCompatActivity {
         public void onDone() {
             mOverlay.remove(mFaceGraphic);
         }
+
     }
+        public static Bitmap getScreenShot(View view) {
+
+            View screenView = view.getRootView();
+            screenView.setDrawingCacheEnabled(true);
+//        screenView.buildDrawingCache(true);
+            Bitmap bitmap = Bitmap.createBitmap(screenView.getDrawingCache());
+            screenView.setDrawingCacheEnabled(false);
+            return bitmap;
+        }
+
+        public static void store(Bitmap bm, String fileName){
+            final String dirPath = Environment.getExternalStorageDirectory().getAbsolutePath() + "/Screentests";
+            File dir = new File(dirPath);
+            if(!dir.exists())
+                dir.mkdirs();
+            File file = new File(dirPath, fileName);
+            try {
+                FileOutputStream fOut = new FileOutputStream(file);
+                bm.compress(Bitmap.CompressFormat.PNG, 85, fOut);
+                fOut.flush();
+                fOut.close();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
 }
