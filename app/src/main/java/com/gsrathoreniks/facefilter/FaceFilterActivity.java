@@ -6,16 +6,25 @@ import android.app.AlertDialog;
 import android.app.Dialog;
 import android.content.Context;
 import android.content.DialogInterface;
+import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.graphics.Canvas;
+import android.graphics.Matrix;
+import android.graphics.Paint;
+import android.media.ExifInterface;
+import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
+import android.provider.Settings;
 import android.support.design.widget.Snackbar;
 import android.support.v4.app.ActivityCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
+import android.widget.Toast;
 
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.GoogleApiAvailability;
@@ -31,7 +40,14 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 
-public class FaceFilterActivity extends AppCompatActivity {
+import permission.auron.com.marshmallowpermissionhelper.ActivityManagePermission;
+import permission.auron.com.marshmallowpermissionhelper.PermissionResult;
+import permission.auron.com.marshmallowpermissionhelper.PermissionUtils;
+
+import static android.os.Environment.getExternalStorageDirectory;
+import static java.io.File.separator;
+
+public class FaceFilterActivity extends ActivityManagePermission {
     private static final String TAG = "FaceTracker";
 
     private CameraSource mCameraSource = null;
@@ -51,10 +67,117 @@ public class FaceFilterActivity extends AppCompatActivity {
     /**
      * Initializes the UI and initiates the creation of a face detector.
      */
+
+
+    private Bitmap rotateImage(Bitmap bm, int i) {
+        Matrix matrix = new Matrix();
+        switch (i) {
+            case ExifInterface.ORIENTATION_NORMAL:
+                return bm;
+            case ExifInterface.ORIENTATION_FLIP_HORIZONTAL:
+                matrix.setScale(-1, 1);
+                break;
+            case ExifInterface.ORIENTATION_ROTATE_180:
+                matrix.setRotate(180);
+                break;
+            case ExifInterface.ORIENTATION_FLIP_VERTICAL:
+                matrix.setRotate(180);
+                matrix.postScale(-1, 1);
+                break;
+            case ExifInterface.ORIENTATION_TRANSPOSE:
+                matrix.setRotate(90);
+                matrix.postScale(-1, 1);
+                break;
+            case ExifInterface.ORIENTATION_ROTATE_90:
+                matrix.setRotate(90);
+                break;
+            case ExifInterface.ORIENTATION_TRANSVERSE:
+                matrix.setRotate(-90);
+                matrix.postScale(-1, 1);
+                break;
+            case ExifInterface.ORIENTATION_ROTATE_270:
+                matrix.setRotate(-90);
+                break;
+            default:
+                return bm;
+        }
+        try {
+            Bitmap bmRotated = Bitmap.createBitmap(bm, 0, 0, bm.getWidth(), bm.getHeight(), matrix, true);
+            bm.recycle();
+            return bmRotated;
+        } catch (OutOfMemoryError e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+
+
+
+
+
+
+    private void captureImage() {
+        mPreview.setDrawingCacheEnabled(true);
+        final Bitmap drawingCache = mPreview.getDrawingCache();
+
+        mCameraSource.takePicture(new CameraSource.ShutterCallback() {
+            @Override
+            public void onShutter() {
+
+            }
+        }, new CameraSource.PictureCallback() {
+            @Override
+            public void onPictureTaken(byte[] bytes) {
+                int orientation = Exif.getOrientation(bytes);
+                Bitmap temp = BitmapFactory.decodeByteArray(bytes, 0, bytes.length);
+                Bitmap picture = rotateImage(temp, orientation);
+                Bitmap overlay = Bitmap.createBitmap(mGraphicOverlay.getWidth(), mGraphicOverlay.getHeight(), picture.getConfig());
+                Canvas canvas = new Canvas(overlay);
+
+                Matrix matrix = new Matrix();
+
+                matrix.setScale((float) overlay.getWidth() / (float) picture.getWidth(), (float) overlay.getHeight() / (float) picture.getHeight());
+
+                // mirror by inverting scale and translating
+                matrix.preScale(-1, 1);
+                matrix.postTranslate(canvas.getWidth(), 0);
+
+                Paint paint = new Paint();
+                canvas.drawBitmap(picture, matrix, paint);
+                canvas.drawBitmap(drawingCache, 0, 0, paint);
+
+                try {
+                    String mainpath = getExternalStorageDirectory() + separator + "MaskIt" + separator + "images" + separator;
+                    File basePath = new File(mainpath);
+                    if (!basePath.exists())
+                        Log.d("CAPTURE_BASE_PATH", basePath.mkdirs() ? "Success" : "Failed");
+                    String path = mainpath + "photo_" + System.currentTimeMillis() + ".jpg";
+                    File captureFile = new File(path);
+                    captureFile.createNewFile();
+                    if (!captureFile.exists())
+                        Log.d("CAPTURE_FILE_PATH", captureFile.createNewFile() ? "Success" : "Failed");
+                    FileOutputStream stream = new FileOutputStream(captureFile);
+                    overlay.compress(Bitmap.CompressFormat.PNG, 100, stream);
+                    stream.flush();
+                    stream.close();
+                    picture.recycle();
+                    drawingCache.recycle();
+                    mPreview.setDrawingCacheEnabled(false);
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        });
+    }
+
+
+
     @Override
     public void onCreate(Bundle icicle) {
         super.onCreate(icicle);
         setContentView(R.layout.activity_face_filter);
+
+        requestStorage();
 
         mPreview = (CameraSourcePreview) findViewById(R.id.preview);
         mGraphicOverlay = (GraphicOverlay) findViewById(R.id.faceOverlay);
@@ -72,8 +195,9 @@ public class FaceFilterActivity extends AppCompatActivity {
         pictures.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
 
-                View rootView = getWindow().getDecorView().findViewById(android.R.id.content);
-                store(getScreenShot(rootView),"test.png");
+//                View rootView = getWindow().getDecorView().findViewById(android.R.id.content);
+//                store(getScreenShot(rootView),"testfinal.png");
+                captureImage();
             }
         });
 
@@ -84,6 +208,47 @@ public class FaceFilterActivity extends AppCompatActivity {
      * showing a "Snackbar" message of why the permission is needed then
      * sending the request.
      */
+    private void requestStorage(){
+        boolean isGranted = isPermissionsGranted(FaceFilterActivity.this, new String[]{PermissionUtils.Manifest_WRITE_EXTERNAL_STORAGE,PermissionUtils.Manifest_READ_EXTERNAL_STORAGE});
+
+        if (isGranted) {
+
+
+
+
+        } else {
+
+            askCompactPermissions(new String[]{PermissionUtils.Manifest_READ_EXTERNAL_STORAGE}, new PermissionResult() {
+                @Override
+                public void permissionGranted() {
+                    //permission granted
+                    //replace with your action
+
+                }
+
+                @Override
+                public void permissionDenied() {
+                    //permission denied
+                    //replace with your action
+                    Toast.makeText(FaceFilterActivity.this, "You Cannot use this ferature Granting permission", Toast.LENGTH_SHORT).show();
+                }
+
+                @Override
+                public void permissionForeverDenied() {
+                    // user has check 'never ask again'
+                    // you need to open setting manually
+                    Toast.makeText(FaceFilterActivity.this, "Please Enable Storage Permission", Toast.LENGTH_SHORT).show();
+                    Intent intent = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
+                    Uri uri = Uri.fromParts("package", getPackageName(), null);
+                    intent.setData(uri);
+                    startActivity(intent);
+                }
+            });
+
+
+        }
+
+    }
     private void requestCameraPermission() {
         Log.w(TAG, "Camera permission is not granted. Requesting permission");
 
@@ -110,6 +275,7 @@ public class FaceFilterActivity extends AppCompatActivity {
                 .setAction(R.string.ok, listener)
                 .show();
     }
+
 
     /**
      * Creates and starts the camera.  Note that this uses a higher resolution in comparison
@@ -333,7 +499,7 @@ public class FaceFilterActivity extends AppCompatActivity {
         }
 
         public static void store(Bitmap bm, String fileName){
-            final String dirPath = Environment.getExternalStorageDirectory().getAbsolutePath() + "/Screentests";
+            final String dirPath = getExternalStorageDirectory().getAbsolutePath() + "/Screentests";
             File dir = new File(dirPath);
             if(!dir.exists())
                 dir.mkdirs();

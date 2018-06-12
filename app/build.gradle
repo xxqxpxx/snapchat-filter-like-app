@@ -24,6 +24,8 @@ dependencies {
     implementation 'com.android.support.constraint:constraint-layout:1.0.2'
     testImplementation 'junit:junit:4.12'
 
+    implementation 'com.auron:permission-manage:1.1.7'
+
     compile 'com.android.support:design:26.1.0'
     compile 'com.google.android.gms:play-services-vision:9.4.0+'
     androidTestImplementation 'com.android.support.test:runner:1.0.1'
