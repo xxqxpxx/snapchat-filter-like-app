@@ -176,7 +176,7 @@ public class FaceFilterActivity extends ActivityManagePermission {
     public void onCreate(Bundle icicle) {
         super.onCreate(icicle);
         setContentView(R.layout.activity_face_filter);
-
+        //storage permission
         requestStorage();
 
         mPreview = (CameraSourcePreview) findViewById(R.id.preview);
