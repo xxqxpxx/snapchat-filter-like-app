@@ -24,6 +24,10 @@
             android:id="@+id/faceOverlay"
             android:layout_width="match_parent"
             android:layout_height="match_parent" />
+        <RelativeLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="@color/colorBack"></RelativeLayout>
 
     </com.gsrathoreniks.facefilter.camera.CameraSourcePreview>
 

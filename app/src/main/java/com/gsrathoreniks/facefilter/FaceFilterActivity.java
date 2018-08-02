@@ -4,6 +4,7 @@ import android.Manifest;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.Dialog;
+import android.content.ContentValues;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
@@ -15,8 +16,11 @@ import android.graphics.Matrix;
 import android.graphics.Paint;
 import android.media.ExifInterface;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
+import android.provider.MediaStore;
+import android.provider.MediaStore.Images;
 import android.provider.Settings;
 import android.support.design.widget.Snackbar;
 import android.support.v4.app.ActivityCompat;
@@ -39,6 +43,7 @@ import com.gsrathoreniks.facefilter.camera.GraphicOverlay;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.nio.file.Files;
 
 import permission.auron.com.marshmallowpermissionhelper.ActivityManagePermission;
 import permission.auron.com.marshmallowpermissionhelper.PermissionResult;
@@ -117,6 +122,10 @@ public class FaceFilterActivity extends ActivityManagePermission {
 
 
     private void captureImage() {
+
+        requestStorage();
+
+
         mPreview.setDrawingCacheEnabled(true);
         final Bitmap drawingCache = mPreview.getDrawingCache();
 
@@ -146,8 +155,38 @@ public class FaceFilterActivity extends ActivityManagePermission {
                 canvas.drawBitmap(picture, matrix, paint);
                 canvas.drawBitmap(drawingCache, 0, 0, paint);
 
+                File filename;
+
                 try {
-                    String mainpath = getExternalStorageDirectory() + separator + "MaskIt" + separator + "images" + separator;
+
+                    requestStorage();
+                    String path1 = Environment.getExternalStorageDirectory().toString().substring(1);
+
+                    Log.i("in save()", "after mkdir");
+                    File file = new File(path1 , "MaskIt");
+                    if (!file.exists()) {
+                        file.mkdirs();
+                    }
+                    filename = new File( Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES)  ,"photo_" + System.currentTimeMillis() + ".jpg");
+                    filename.createNewFile();
+                    Log.i("in save()", "after file");
+                    Log.i("in save()", "after outputstream");
+
+                    FileOutputStream stream = new FileOutputStream(filename);
+                    overlay.compress(Bitmap.CompressFormat.PNG, 100, stream);
+
+                    stream.flush();
+                    stream.close();
+
+                    Log.i("in save()", "after outputstream closed");
+                    //File parent = filename.getParentFile();
+                    ContentValues image = getImageContent(filename);
+                    Uri result = getContentResolver().insert(
+                            Images.Media.EXTERNAL_CONTENT_URI, image);
+                    Toast.makeText(getApplicationContext(),
+                            "File is Saved in  " + filename, Toast.LENGTH_SHORT).show();
+
+                  /*  String mainpath = getExternalStorageDirectory() + separator + "MaskIt" + separator + "images" + separator;
                     File basePath = new File(mainpath);
                     if (!basePath.exists())
                         Log.d("CAPTURE_BASE_PATH", basePath.mkdirs() ? "Success" : "Failed");
@@ -159,7 +198,7 @@ public class FaceFilterActivity extends ActivityManagePermission {
                     FileOutputStream stream = new FileOutputStream(captureFile);
                     overlay.compress(Bitmap.CompressFormat.PNG, 100, stream);
                     stream.flush();
-                    stream.close();
+                    stream.close();*/
                     picture.recycle();
                     drawingCache.recycle();
                     mPreview.setDrawingCacheEnabled(false);
@@ -170,6 +209,22 @@ public class FaceFilterActivity extends ActivityManagePermission {
         });
     }
 
+    public ContentValues getImageContent(File parent) {
+        ContentValues image = new ContentValues();
+        image.put(Images.Media.TITLE, "MaskIt");
+        image.put(Images.Media.DISPLAY_NAME, "photo_" + System.currentTimeMillis() + ".jpg");
+        image.put(Images.Media.DESCRIPTION, "App Image");
+        image.put(Images.Media.DATE_ADDED, System.currentTimeMillis());
+        image.put(Images.Media.MIME_TYPE, "image/jpg");
+        image.put(Images.Media.ORIENTATION, 0);
+        image.put(Images.ImageColumns.BUCKET_ID, parent.toString()
+                .toLowerCase().hashCode());
+        image.put(Images.ImageColumns.BUCKET_DISPLAY_NAME, parent.getName()
+                .toLowerCase());
+        image.put(Images.Media.SIZE, parent.length());
+        image.put(Images.Media.DATA, parent.getAbsolutePath());
+        return image;
+    }
 
 
     @Override
@@ -177,7 +232,7 @@ public class FaceFilterActivity extends ActivityManagePermission {
         super.onCreate(icicle);
         setContentView(R.layout.activity_face_filter);
         //storage permission
-        requestStorage();
+       // requestStorage();
 
         mPreview = (CameraSourcePreview) findViewById(R.id.preview);
         mGraphicOverlay = (GraphicOverlay) findViewById(R.id.faceOverlay);
@@ -214,11 +269,9 @@ public class FaceFilterActivity extends ActivityManagePermission {
         if (isGranted) {
 
 
-
-
         } else {
 
-            askCompactPermissions(new String[]{PermissionUtils.Manifest_READ_EXTERNAL_STORAGE}, new PermissionResult() {
+            askCompactPermissions(new String[]{PermissionUtils.Manifest_WRITE_EXTERNAL_STORAGE,PermissionUtils.Manifest_READ_EXTERNAL_STORAGE}, new PermissionResult() {
                 @Override
                 public void permissionGranted() {
                     //permission granted
