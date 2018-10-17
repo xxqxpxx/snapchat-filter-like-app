@@ -23,6 +23,7 @@ import android.graphics.Paint;
 import android.graphics.PointF;
 
 import com.google.android.gms.vision.face.Face;
+import com.google.android.gms.vision.face.Landmark;
 import com.gsrathoreniks.facefilter.camera.GraphicOverlay;
 
 /**
@@ -52,6 +53,8 @@ class FaceGraphic extends GraphicOverlay.Graphic {
 
     private Paint mFacePositionPaint;
     private Paint mIdPaint;
+    private Paint rectPaint = new Paint(); ;
+
     private Paint mBoxPaint;
 
     private volatile Face mFace;
@@ -70,15 +73,21 @@ class FaceGraphic extends GraphicOverlay.Graphic {
         mFacePositionPaint.setColor(selectedColor);
 
         mIdPaint = new Paint();
-        mIdPaint.setColor(selectedColor);
-        mIdPaint.setTextSize(ID_TEXT_SIZE);
+      //  mIdPaint.setColor(selectedColor);
+     //   mIdPaint.setTextSize(ID_TEXT_SIZE);
 
         mBoxPaint = new Paint();
-        mBoxPaint.setColor(selectedColor);
+     //   mBoxPaint.setColor(selectedColor);
         mBoxPaint.setStyle(Paint.Style.STROKE);
-        mBoxPaint.setStrokeWidth(BOX_STROKE_WIDTH);
-        bitmap = BitmapFactory.decodeResource(getOverlay().getContext().getResources(), R.drawable.badsmile);
+       mBoxPaint.setStrokeWidth(BOX_STROKE_WIDTH);
+        bitmap = BitmapFactory.decodeResource(getOverlay().getContext().getResources(), R.drawable.z);
         op = bitmap;
+
+        rectPaint.setStyle(Paint.Style.STROKE);
+        rectPaint.setStrokeWidth(BOX_STROKE_WIDTH);
+
+
+
     }
 
     void setId(int id) {
@@ -94,6 +103,8 @@ class FaceGraphic extends GraphicOverlay.Graphic {
         mFace = face;
         op = Bitmap.createScaledBitmap(bitmap, (int) scaleX(face.getWidth()),
                 (int) scaleY(((bitmap.getHeight() * face.getWidth()) / bitmap.getWidth())), false);
+
+
         postInvalidate();
     }
 
@@ -118,7 +129,13 @@ class FaceGraphic extends GraphicOverlay.Graphic {
         float bottom = y + yOffset;
         canvas.drawRect(left, top, right, bottom, mBoxPaint);
         canvas.drawBitmap(op, left, top, new Paint());
+
+
+
     }
+
+
+
 
     private float getNoseAndMouthDistance(PointF nose, PointF mouth) {
         return (float) Math.hypot(mouth.x - nose.x, mouth.y - nose.y);
