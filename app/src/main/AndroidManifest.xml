@@ -22,7 +22,10 @@
     <meta-data
         android:name="com.google.android.gms.vision.DEPENDENCIES"
         android:value="face" />
-        <activity android:name=".FaceFilterActivity">
+        <activity android:name=".FaceFilterActivity"
+            android:configChanges="orientation"
+            android:screenOrientation="portrait"
+            >
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
 
